@@ -40,6 +40,7 @@ def decrypt_submission_or_reply(filepath, target_filename, home_dir,
     os.unlink(filepath)  # original file
 
     if res != 0:
+        # The out tempfile will be automatically deleted after closing.
         out.close()
         err.close()
 
@@ -47,10 +48,15 @@ def decrypt_submission_or_reply(filepath, target_filename, home_dir,
             msg = e.read()
             logger.error("GPG error: {}".format(msg))
 
+        # The err tempfile was created with delete=False, so needs to
+        # be explicitly cleaned up.
         os.unlink(err.name)
-        os.unlink(out.name)
         dest = ""
     else:
+        # Cleanup err file
+        err.close()
+        os.unlink(err.name)
+
         if is_doc:
             # Docs are gzipped, so gunzip the file
             with gzip.open(out.name, 'rb') as infile:
@@ -69,8 +75,8 @@ def decrypt_submission_or_reply(filepath, target_filename, home_dir,
             dest = os.path.join(home_dir, "data", fn_no_ext)
             shutil.copy(out.name, dest)
 
+        # Now close to automatically delete the out tempfile.
         out.close()
-        err.close()
         logger.info("Downloaded and decrypted: {}".format(dest))
 
     return res, dest
